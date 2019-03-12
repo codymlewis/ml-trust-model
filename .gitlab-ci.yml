@@ -6,4 +6,4 @@ before_script:
 
 run-test:
   script:
-    - python3 test.py
+    - python3 Test.py

@@ -27,7 +27,7 @@ class Node:
     def __init__(self, service=100, capability=100, note_acc=1.0):
         self.service = service
         self.capability = capability
-        self.note_taking_acc = note_acc
+        self.note_taking_acc = note_acc  # This is unknown to the trust manager
 
     def send_report(self, proxy, service_target, capability_target):
         '''
@@ -47,8 +47,64 @@ class Node:
         else:
             note = -1
 
-        return note if np.random.rand() < self.note_taking_acc \
-            else wrong_note(note)
+        if np.random.rand() < self.note_taking_acc:
+            return note
+        return wrong_note(note)
+
+
+class TrustManager:
+    '''
+    Create and control the network.
+    '''
+    def __init__(self, no_of_nodes=200, constrained_nodes=0.5,
+                 poor_witnesses=0.2, malicious_nodes=0.1):
+        self.network = []
+        ids = [i for i in range(no_of_nodes)]
+        constrained_list = []
+        for _ in range(int(no_of_nodes * constrained_nodes)):
+            constrained_list.append(ids.pop(np.random.randint(len(ids))))
+        ids = [i for i in range(no_of_nodes)]
+        poor_witness_list = []
+        for _ in range(int(no_of_nodes * poor_witnesses)):
+            poor_witness_list.append(ids.pop(np.random.randint(len(ids))))
+
+        for i in range(no_of_nodes):
+            if i in constrained_list:
+                service = np.round(np.random.rand())
+                capability = np.round(np.random.rand())
+            else:
+                service = 100
+                capability = 100
+            note_acc = np.random.rand() if i in poor_witness_list else 1.0
+            self.network.append(Node(service, capability, note_acc))
+
+        self.reports = [
+            [[] for _ in range(no_of_nodes)] for _ in range(no_of_nodes)
+        ]
+
+    def bootstrap(self, epochs=1_000):
+        '''
+        Go through the network and perform artificial transactions to develop
+        reports.
+        '''
+        for _ in range(epochs):
+            self._artificial_transactions()
+
+    def _artificial_transactions(self):
+        '''
+        Perform some transactions through the entire network with random
+        targets.
+        '''
+        for i_node_i in enumerate(self.network):
+            for j_node_j in enumerate(self.network):
+                if i_node_i[0] != j_node_j[0]:
+                    service_target = np.round(np.random.rand() * 100)
+                    capability_target = np.round(np.random.rand() * 100)
+                    self.reports[i_node_i[0]][j_node_j[0]].append(
+                        i_node_i[1].send_report(
+                            j_node_j[1], service_target, capability_target
+                        )
+                    )
 
 
 def wrong_note(note):
@@ -60,5 +116,4 @@ def wrong_note(note):
 
 
 if __name__ == '__main__':
-    REPORT = Report(50, 50, -1)
-    print(f"{REPORT.service}, {REPORT.capability}, {REPORT.note}")
+    pass

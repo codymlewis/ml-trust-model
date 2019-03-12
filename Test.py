@@ -49,6 +49,29 @@ class TestTrustModel(unittest.TestCase):
         proxy = TrustModel.Node(1, 1)
         self.assertEqual(node.take_note(proxy, 50, 50), -1)
 
+    def test_network_creation(self):
+        '''
+        Test the creation of a network within the trust manager.
+        '''
+        no_of_nodes = 200
+        constrained_nodes = 0.5
+        poor_witnesses = 0.2
+        trust_manager = TrustModel.TrustManager(
+            no_of_nodes, constrained_nodes, poor_witnesses
+        )
+        self.assertEqual(len(trust_manager.network), no_of_nodes)
+        num_constrained = 0
+        num_poor_witnesses = 0
+
+        for node in trust_manager.network:
+            if (node.capability < 100) or (node.service < 100):
+                num_constrained += 1
+            if node.note_taking_acc < 1.0:
+                num_poor_witnesses += 1
+
+        self.assertEqual(no_of_nodes * constrained_nodes, num_constrained)
+        self.assertEqual(no_of_nodes * poor_witnesses, num_poor_witnesses)
+
 
 if __name__ == '__main__':
     unittest.main()
