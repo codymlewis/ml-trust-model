@@ -31,8 +31,20 @@ class TestTrustModel(unittest.TestCase):
         self.assertEqual(report.note, note)
 
     def test_wrong_note(self):
+        '''
+        Test that the wrong note is assigned for each possible note.
+        '''
         for note in [-1, 0, 1]:
             self.assertNotEqual(TrustModel.wrong_note(note), note)
+
+    def test_note_take(self):
+        '''
+        Test that note taking returns the expected values.
+        '''
+        node = TrustModel.Node()
+        self.assertEqual(node.take_note(100, 100, 50, 50), 1)
+        self.assertEqual(node.take_note(100, 1, 50, 50), 0)
+        self.assertEqual(node.take_note(1, 1, 50, 50), -1)
 
 
 if __name__ == '__main__':
