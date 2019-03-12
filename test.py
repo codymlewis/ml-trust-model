@@ -42,9 +42,12 @@ class TestTrustModel(unittest.TestCase):
         Test that note taking returns the expected values.
         '''
         node = TrustModel.Node()
-        self.assertEqual(node.take_note(100, 100, 50, 50), 1)
-        self.assertEqual(node.take_note(100, 1, 50, 50), 0)
-        self.assertEqual(node.take_note(1, 1, 50, 50), -1)
+        proxy = TrustModel.Node()
+        self.assertEqual(node.take_note(proxy, 50, 50), 1)
+        proxy = TrustModel.Node(100, 1)
+        self.assertEqual(node.take_note(proxy, 50, 50), 0)
+        proxy = TrustModel.Node(1, 1)
+        self.assertEqual(node.take_note(proxy, 50, 50), -1)
 
 
 if __name__ == '__main__':
