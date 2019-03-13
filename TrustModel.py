@@ -22,7 +22,7 @@ class Report:
 
 class Node:
     '''
-    A node in the trust managed network
+    A node in the trust managed network.
     '''
     def __init__(self, service=100, capability=100, note_acc=1.0):
         self.service = service
@@ -97,12 +97,12 @@ class TrustManager:
             [[] for _ in range(no_of_nodes)] for _ in range(no_of_nodes)
         ]
 
-    def bootstrap(self, epochs=1_000):
+    def bootstrap(self, epochs=100):
         '''
         Go through the network and perform artificial transactions to develop
         reports.
         '''
-        for _ in range(epochs):
+        for i in range(epochs):
             self._artificial_transactions()
 
     def _artificial_transactions(self):
@@ -131,4 +131,7 @@ def wrong_note(note):
 
 
 if __name__ == '__main__':
-    pass
+    TRUST_MANAGER = TrustManager()
+    TRUST_MANAGER.bootstrap(5)
+    print(f"Shape of the reports: {np.shape(TRUST_MANAGER.reports)}")
+    print(TRUST_MANAGER.reports[0][1])

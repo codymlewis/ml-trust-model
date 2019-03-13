@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import unittest
+import numpy as np
 
 import TrustModel
 
@@ -99,6 +100,19 @@ class TestTrustModel(unittest.TestCase):
         self.assertEqual(report.service, service)
         self.assertEqual(report.capability, capability)
         self.assertEqual(report.note, note)
+
+    def test_bootstrap(self):
+        trust_manager = TrustModel.TrustManager()
+        no_of_transactions = 5
+
+        trust_manager.bootstrap(no_of_transactions)
+        self.assertEqual(np.shape(trust_manager.reports), (200, 200))
+        for i in range(200):
+            for j in range(200):
+                if i != j:
+                    self.assertEqual(
+                        len(trust_manager.reports[i][j]), no_of_transactions
+                    )
 
 
 if __name__ == '__main__':
