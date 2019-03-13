@@ -102,8 +102,25 @@ class TrustManager:
         Go through the network and perform artificial transactions to develop
         reports.
         '''
-        for i in range(epochs):
+        print(f"\nBootstrapping network for {epochs} epochs:")
+        progress_bar = "["
+        progress_bar += "".join(["." for _ in range(20)])
+        progress_bar += "]"
+        print(f"{progress_bar} 0%")
+        for i in range(1, epochs + 1):
+            progress = int(100 * i / epochs)
+            if (progress % 5) == 0:
+                unprogressed = int((100 - progress) / 100 * len(progress_bar))
+                progress_bar_progress = len(progress_bar) - unprogressed
+                progress_bar = "["
+                progress_bar += "".join(
+                    ["#" for _ in range(progress_bar_progress - 1)]
+                )
+                progress_bar += "".join(["." for _ in range(unprogressed - 1)])
+                progress_bar += "]"
+                print(f"{progress_bar} {progress}%")
             self._artificial_transactions()
+        print("Done.")
 
     def _artificial_transactions(self):
         '''
@@ -134,4 +151,3 @@ if __name__ == '__main__':
     TRUST_MANAGER = TrustManager()
     TRUST_MANAGER.bootstrap(5)
     print(f"Shape of the reports: {np.shape(TRUST_MANAGER.reports)}")
-    print(TRUST_MANAGER.reports[0][1])
