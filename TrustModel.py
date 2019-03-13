@@ -75,6 +75,10 @@ class TrustManager:
         poor_witness_list = []
         for _ in range(int(no_of_nodes * poor_witnesses)):
             poor_witness_list.append(ids.pop(np.random.randint(len(ids))))
+        ids = [i for i in range(no_of_nodes)]
+        malicious_list = []
+        for _ in range(int(no_of_nodes * malicious_nodes)):
+            malicious_list.append(ids.pop(np.random.randint(len(ids))))
 
         for i in range(no_of_nodes):
             if i in constrained_list:
@@ -84,7 +88,10 @@ class TrustManager:
                 service = 100
                 capability = 100
             note_acc = np.random.rand() if i in poor_witness_list else 1.0
-            self.network.append(Node(service, capability, note_acc))
+            if i in malicious_list:
+                self.network.append(BadMouther(service, capability, note_acc))
+            else:
+                self.network.append(Node(service, capability, note_acc))
 
         self.reports = [
             [[] for _ in range(no_of_nodes)] for _ in range(no_of_nodes)

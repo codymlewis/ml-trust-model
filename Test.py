@@ -56,21 +56,26 @@ class TestTrustModel(unittest.TestCase):
         no_of_nodes = 200
         constrained_nodes = 0.5
         poor_witnesses = 0.2
+        malicious_nodes = 0.1
         trust_manager = TrustModel.TrustManager(
-            no_of_nodes, constrained_nodes, poor_witnesses
+            no_of_nodes, constrained_nodes, poor_witnesses, malicious_nodes
         )
         self.assertEqual(len(trust_manager.network), no_of_nodes)
         num_constrained = 0
         num_poor_witnesses = 0
+        num_malicious = 0
 
         for node in trust_manager.network:
             if (node.capability < 100) or (node.service < 100):
                 num_constrained += 1
             if node.note_taking_acc < 1.0:
                 num_poor_witnesses += 1
+            if isinstance(node, TrustModel.BadMouther):
+                num_malicious += 1
 
         self.assertEqual(no_of_nodes * constrained_nodes, num_constrained)
         self.assertEqual(no_of_nodes * poor_witnesses, num_poor_witnesses)
+        self.assertEqual(no_of_nodes * malicious_nodes, num_malicious)
 
     def test_bad_mouther(self):
         '''
