@@ -52,6 +52,14 @@ class Node:
         return wrong_note(note)
 
 
+class BadMouther(Node):
+    '''
+    A bad mouthing malicious node.
+    '''
+    def take_note(self, proxy, service_target, capability_target):
+        return -1
+
+
 class TrustManager:
     '''
     Create and control the network.

@@ -72,6 +72,29 @@ class TestTrustModel(unittest.TestCase):
         self.assertEqual(no_of_nodes * constrained_nodes, num_constrained)
         self.assertEqual(no_of_nodes * poor_witnesses, num_poor_witnesses)
 
+    def test_bad_mouther(self):
+        '''
+        Test the report creation of the bad mouther.
+        '''
+        proxy = TrustModel.Node(100, 100)
+        bad_mouther = TrustModel.BadMouther()
+        self.make_report(bad_mouther, proxy, note=-1)
+        proxy = TrustModel.Node(1, 100)
+        self.make_report(bad_mouther, proxy, note=-1)
+        proxy = TrustModel.Node(100, 1)
+        self.make_report(bad_mouther, proxy, note=-1)
+        proxy = TrustModel.Node(1, 1)
+        self.make_report(bad_mouther, proxy, note=-1)
+
+    def make_report(self, client, proxy, service=50, capability=50, note=1):
+        '''
+        Test that a report matches expected values
+        '''
+        report = client.send_report(proxy, service, capability)
+        self.assertEqual(report.service, service)
+        self.assertEqual(report.capability, capability)
+        self.assertEqual(report.note, note)
+
 
 if __name__ == '__main__':
     unittest.main()
