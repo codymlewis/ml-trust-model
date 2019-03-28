@@ -20,16 +20,21 @@ class TestTrustModel(unittest.TestCase):
         for service in range(101):
             for capability in range(101):
                 for note in [-1, 0, 1]:
-                    self.report_create(service, capability, note)
+                    for time in range(10):
+                        self.report_create(service, capability, note, time)
 
-    def report_create(self, service, capability, note):
+    def report_create(self, service, capability, note, time):
         '''
         Test the creation of reports.
         '''
-        report = TrustModel.Report(service, capability, note)
+        report = TrustModel.Report(service, capability, note, time)
         self.assertEqual(report.service, service)
         self.assertEqual(report.capability, capability)
         self.assertEqual(report.note, note)
+        self.assertEqual(report.time, time)
+        self.assertEqual(
+            report.csv_output(), f"{service},{capability},{note},{time}"
+        )
 
     def test_wrong_note(self):
         '''
@@ -92,14 +97,16 @@ class TestTrustModel(unittest.TestCase):
         proxy = TrustModel.Node(1, 1)
         self.make_report(bad_mouther, proxy, note=-1)
 
-    def make_report(self, client, proxy, service=50, capability=50, note=1):
+    def make_report(self, client, proxy, service=50,
+                    capability=50, note=1, time=0):
         '''
         Test that a report matches expected values
         '''
-        report = client.send_report(proxy, service, capability)
+        report = client.send_report(proxy, service, capability, time)
         self.assertEqual(report.service, service)
         self.assertEqual(report.capability, capability)
         self.assertEqual(report.note, note)
+        self.assertEqual(report.time, time)
 
     def test_bootstrap(self):
         trust_manager = TrustModel.TrustManager()
