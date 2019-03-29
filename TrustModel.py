@@ -74,21 +74,9 @@ class TrustManager:
     def __init__(self, no_of_nodes=200, constrained_nodes=0.5,
                  poor_witnesses=0.2, malicious_nodes=0.1):
         self.network = []
-        ids = [i for i in range(no_of_nodes)]
-
-        constrained_list = []
-        for _ in range(int(no_of_nodes * constrained_nodes)):
-            constrained_list.append(ids.pop(np.random.randint(len(ids))))
-
-        ids = [i for i in range(no_of_nodes)]
-        poor_witness_list = []
-        for _ in range(int(no_of_nodes * poor_witnesses)):
-            poor_witness_list.append(ids.pop(np.random.randint(len(ids))))
-
-        ids = [i for i in range(no_of_nodes)]
-        malicious_list = []
-        for _ in range(int(no_of_nodes * malicious_nodes)):
-            malicious_list.append(ids.pop(np.random.randint(len(ids))))
+        constrained_list = get_conditioned_ids(no_of_nodes, constrained_nodes)
+        poor_witness_list = get_conditioned_ids(no_of_nodes, poor_witnesses)
+        malicious_list = get_conditioned_ids(no_of_nodes, malicious_nodes)
 
         for i in range(no_of_nodes):
             if i in constrained_list:
@@ -112,28 +100,11 @@ class TrustManager:
         Go through the network and perform artificial transactions to develop
         reports.
         '''
-        progress_len = 20
         print(f"\nBootstrapping network for {epochs} epochs:")
-        progress_bar = "["
-        progress_bar += "".join(["." for _ in range(progress_len - 1)])
-        progress_bar += "]"
-        print(f"{progress_bar} 0%")
+        print_progress(0, epochs)
         for i in range(1, epochs + 1):
-            progress = int(100 * i / epochs)
-            if (100 * i / epochs) == progress:
-                progress_bar_progress = int(progress_len * progress * 0.01)
-                if progress_bar_progress != 0:
-                    unprogressed = progress_len - progress_bar_progress
-                else:
-                    unprogressed = progress_len - 1
-                progress_bar = "["
-                progress_bar += "".join(
-                    ["#" for _ in range(progress_bar_progress - 1)]
-                )
-                progress_bar += "".join(["." for _ in range(unprogressed)])
-                progress_bar += "]"
-                print(f"{progress_bar} {progress}%")
             self._artificial_transactions(i)
+            print_progress(i, epochs)
         print("Done.")
 
     def _artificial_transactions(self, current_epoch):
@@ -167,6 +138,39 @@ class TrustManager:
                             f"{reports_from_node_i[0]},{reports_on_node_j[0]},{report.csv_output()}\n"
                         )
 
+
+def get_conditioned_ids(no_of_nodes, condition_factor):
+    '''
+    Give an id list of random nodes that fit a given condition.
+    '''
+    conditioned_list = []
+    ids = [i for i in range(no_of_nodes)]
+
+    for _ in range(int(no_of_nodes * condition_factor)):
+        conditioned_list.append(ids.pop(np.random.randint(len(ids))))
+
+    return conditioned_list
+
+
+def print_progress(current_epoch, total_epochs, progress_len=20):
+    '''
+    Print a progress bar about how far a process has went through it's epochs.
+    '''
+    progress = int(100 * current_epoch / total_epochs)
+
+    if (100 * current_epoch / total_epochs) == progress:
+        progress_bar_progress = int(progress_len * progress * 0.01)
+        if progress_bar_progress != 0:
+            unprogressed = progress_len - progress_bar_progress
+        else:
+            unprogressed = progress_len - 1
+        progress_bar = "["
+        progress_bar += "".join(
+            ["#" for _ in range(progress_bar_progress - 1)]
+        )
+        progress_bar += "".join(["." for _ in range(unprogressed)])
+        progress_bar += "]"
+        print(f"{progress_bar} {progress}%")
 
 
 def wrong_note(note):
