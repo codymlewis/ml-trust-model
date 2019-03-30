@@ -2,7 +2,11 @@
 import unittest
 import numpy as np
 
-import TrustModel
+import Functions
+import Report
+import Node
+import BadMouther
+import TrustManager
 
 '''
 Perform unit tests on the program.
@@ -27,7 +31,7 @@ class TestTrustModel(unittest.TestCase):
         '''
         Test the creation of reports.
         '''
-        report = TrustModel.Report(service, capability, note, time)
+        report = Report.Report(service, capability, note, time)
         self.assertEqual(report.service, service)
         self.assertEqual(report.capability, capability)
         self.assertEqual(report.note, note)
@@ -41,18 +45,18 @@ class TestTrustModel(unittest.TestCase):
         Test that the wrong note is assigned for each possible note.
         '''
         for note in [-1, 0, 1]:
-            self.assertNotEqual(TrustModel.wrong_note(note), note)
+            self.assertNotEqual(Functions.wrong_note(note), note)
 
     def test_note_take(self):
         '''
         Test that note taking returns the expected values.
         '''
-        node = TrustModel.Node()
-        proxy = TrustModel.Node()
+        node = Node.Node()
+        proxy = Node.Node()
         self.assertEqual(node.take_note(proxy, 50, 50), 1)
-        proxy = TrustModel.Node(100, 1)
+        proxy = Node.Node(100, 1)
         self.assertEqual(node.take_note(proxy, 50, 50), 0)
-        proxy = TrustModel.Node(1, 1)
+        proxy = Node.Node(1, 1)
         self.assertEqual(node.take_note(proxy, 50, 50), -1)
 
     def test_network_creation(self):
@@ -63,7 +67,7 @@ class TestTrustModel(unittest.TestCase):
         constrained_nodes = 0.5
         poor_witnesses = 0.2
         malicious_nodes = 0.1
-        trust_manager = TrustModel.TrustManager(
+        trust_manager = TrustManager.TrustManager(
             no_of_nodes, constrained_nodes, poor_witnesses, malicious_nodes
         )
         self.assertEqual(len(trust_manager.network), no_of_nodes)
@@ -76,7 +80,7 @@ class TestTrustModel(unittest.TestCase):
                 num_constrained += 1
             if node.note_taking_acc < 1.0:
                 num_poor_witnesses += 1
-            if isinstance(node, TrustModel.BadMouther):
+            if isinstance(node, BadMouther.BadMouther):
                 num_malicious += 1
 
         self.assertEqual(no_of_nodes * constrained_nodes, num_constrained)
@@ -87,14 +91,14 @@ class TestTrustModel(unittest.TestCase):
         '''
         Test the report creation of the bad mouther.
         '''
-        proxy = TrustModel.Node(100, 100)
-        bad_mouther = TrustModel.BadMouther()
+        proxy = Node.Node(100, 100)
+        bad_mouther = BadMouther.BadMouther()
         self.make_report(bad_mouther, proxy, note=-1)
-        proxy = TrustModel.Node(1, 100)
+        proxy = Node.Node(1, 100)
         self.make_report(bad_mouther, proxy, note=-1)
-        proxy = TrustModel.Node(100, 1)
+        proxy = Node.Node(100, 1)
         self.make_report(bad_mouther, proxy, note=-1)
-        proxy = TrustModel.Node(1, 1)
+        proxy = Node.Node(1, 1)
         self.make_report(bad_mouther, proxy, note=-1)
 
     def make_report(self, client, proxy, service=50,
@@ -109,7 +113,7 @@ class TestTrustModel(unittest.TestCase):
         self.assertEqual(report.time, time)
 
     def test_bootstrap(self):
-        trust_manager = TrustModel.TrustManager()
+        trust_manager = TrustManager.TrustManager()
         no_of_transactions = 5
 
         trust_manager.bootstrap(no_of_transactions)
