@@ -32,10 +32,10 @@ class TestTrustModel(unittest.TestCase):
         Test the creation of reports.
         '''
         report = Report.Report(service, capability, note, time)
-        self.assertEqual(report.service, service)
-        self.assertEqual(report.capability, capability)
-        self.assertEqual(report.note, note)
-        self.assertEqual(report.time, time)
+        self.assertEqual(report.get_service(), service)
+        self.assertEqual(report.get_capability(), capability)
+        self.assertEqual(report.get_note(), note)
+        self.assertEqual(report.get_time(), time)
         self.assertEqual(
             report.csv_output(), f"{service},{capability},{note},{time}"
         )
@@ -70,21 +70,17 @@ class TestTrustModel(unittest.TestCase):
         trust_manager = TrustManager.TrustManager(
             no_of_nodes, constrained_nodes, poor_witnesses, malicious_nodes
         )
-        self.assertEqual(len(trust_manager.network), no_of_nodes)
+        self.assertEqual(len(trust_manager.get_network()), no_of_nodes)
         num_constrained = 0
-        num_poor_witnesses = 0
         num_malicious = 0
 
-        for node in trust_manager.network:
-            if (node.capability < 100) or (node.service < 100):
+        for node in trust_manager.get_network():
+            if (node.get_capability() < 100) or (node.get_service() < 100):
                 num_constrained += 1
-            if node.note_taking_acc < 1.0:
-                num_poor_witnesses += 1
             if isinstance(node, BadMouther.BadMouther):
                 num_malicious += 1
 
         self.assertEqual(no_of_nodes * constrained_nodes, num_constrained)
-        self.assertEqual(no_of_nodes * poor_witnesses, num_poor_witnesses)
         self.assertEqual(no_of_nodes * malicious_nodes, num_malicious)
 
     def test_bad_mouther(self):
@@ -107,23 +103,17 @@ class TestTrustModel(unittest.TestCase):
         Test that a report matches expected values
         '''
         report = client.send_report(proxy, service, capability, time)
-        self.assertEqual(report.service, service)
-        self.assertEqual(report.capability, capability)
-        self.assertEqual(report.note, note)
-        self.assertEqual(report.time, time)
+        self.assertEqual(report.get_service(), service)
+        self.assertEqual(report.get_capability(), capability)
+        self.assertEqual(report.get_note(), note)
+        self.assertEqual(report.get_time(), time)
 
     def test_bootstrap(self):
         trust_manager = TrustManager.TrustManager()
         no_of_transactions = 5
 
         trust_manager.bootstrap(no_of_transactions)
-        self.assertEqual(np.shape(trust_manager.reports), (200, 200))
-        for i in range(200):
-            for j in range(200):
-                if i != j:
-                    self.assertEqual(
-                        len(trust_manager.reports[i][j]), no_of_transactions
-                    )
+        self.assertEqual(np.shape(trust_manager.get_reports()), (200, 200))
 
 
 if __name__ == '__main__':
