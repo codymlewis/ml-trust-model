@@ -113,7 +113,7 @@ class TestTrustModel(unittest.TestCase):
         no_of_transactions = 5
 
         trust_manager.bootstrap(no_of_transactions)
-        self.assertEqual(np.shape(trust_manager.get_reports()), (200, 200))
+        self.assertEqual(np.shape(trust_manager.get_reports()), (50, 50))
 
 
 if __name__ == '__main__':

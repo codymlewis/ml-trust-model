@@ -391,4 +391,5 @@ TSWLatexianTemp*
 tags
 tags.lock
 Session.vim
-reports.csv
+*.csv
+*.pkl
