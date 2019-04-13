@@ -6,15 +6,18 @@ import Functions
 import Node
 import BadMouther
 import TrustManager.SVM as SVM
+import TrustManager.ANN as ANN
+
+CAP_MAX = 10
+SERVICE_MAX = 6
 
 
 class TrustManager:
     '''
     Create and control the network.
     '''
-    def __init__(self, no_of_nodes=50, constrained_nodes=0.5,
-                 poor_witnesses=0.2, malicious_nodes=0.1,
-                 train_filename="reports-train.csv", test_filename="reports-test_csv"):
+    def __init__(self, no_of_nodes=50, constrained_nodes=0.5, malicious_nodes=0.1, malicious_reporters=0.1,
+                 train_filename="reports-train.csv", test_filename="reports-test.csv"):
         self.__network = []
         self.__train_filename = train_filename
         self.__test_filename = test_filename
@@ -23,27 +26,26 @@ class TrustManager:
         constrained_list = Functions.get_conditioned_ids(
             no_of_nodes, constrained_nodes
         )
-        self.poor_witness_list = Functions.get_conditioned_ids(
-            no_of_nodes, poor_witnesses
-        )
-        self.malicious_list = Functions.get_conditioned_ids(
+        malicious_node_list = Functions.get_conditioned_ids(
             no_of_nodes, malicious_nodes
+        )
+        malicious_reporter_list = Functions.get_conditioned_ids(
+            no_of_nodes, malicious_reporters
         )
 
         for i in range(no_of_nodes):
             if i in constrained_list:
-                service = np.round(np.random.rand())
-                capability = np.round(np.random.rand())
+                service = int(np.floor(np.random.rand() * SERVICE_MAX))
+                capability = int(np.floor(np.random.rand() * CAP_MAX))
             else:
-                service = 100
-                capability = 100
-            note_acc = np.random.rand() if i in self.poor_witness_list else 1.0
-            if i in self.malicious_list:
+                service = SERVICE_MAX
+                capability = CAP_MAX
+            if i in malicious_reporter_list:
                 self.__network.append(
-                    BadMouther.BadMouther(service, capability, note_acc)
+                    BadMouther.BadMouther(service, capability, i in malicious_node_list)
                 )
             else:
-                self.__network.append(Node.Node(service, capability, note_acc))
+                self.__network.append(Node.Node(service, capability, i in malicious_node_list))
 
         self.__reports = [
             [None for _ in range(no_of_nodes)] for _ in range(no_of_nodes)
@@ -59,7 +61,7 @@ class TrustManager:
     def get_reports(self):
         return self.__reports
 
-    def bootstrap(self, epochs=100):
+    def bootstrap(self, epochs=100, filewrite=True):
         '''
         Go through the network and perform artificial transactions to develop
         reports.
@@ -67,8 +69,10 @@ class TrustManager:
         print(f"\nBootstrapping network for {epochs} epochs:")
         Functions.print_progress(0, epochs)
         for i in range(1, epochs + 1):
-            self.__artificial_transactions(i)
+            self.__artificial_transactions(i, self.__train_filename if filewrite else None)
+            self.__artificial_transactions(i, self.__test_filename if filewrite else None)
             Functions.print_progress(i, epochs)
+        print()
         print("Done.")
 
     def __artificial_transactions(self, current_epoch, report_filename=None):
@@ -79,8 +83,8 @@ class TrustManager:
         for i_node_i in enumerate(self.__network):
             for j_node_j in enumerate(self.__network):
                 if i_node_i[0] != j_node_j[0]:
-                    service_target = np.round(np.random.rand() * 100)
-                    capability_target = np.round(np.random.rand() * 100)
+                    service_target = int(np.floor(np.random.rand() * SERVICE_MAX)) + 1
+                    capability_target = int(np.floor(np.random.rand() * CAP_MAX)) + 1
                     self.__reports[i_node_i[0]][j_node_j[0]] = i_node_i[1].send_report(
                         j_node_j[1],
                         service_target,
@@ -98,39 +102,87 @@ class TrustManager:
             for reports_from_node_i in enumerate(self.__reports):
                 for reports_on_node_j in enumerate(reports_from_node_i[1]):
                     if reports_from_node_i[0] != reports_on_node_j[0]:
-                        if reports_from_node_i[0] in self.malicious_list:
-                            observer_class = 2
-                        elif reports_from_node_i[0] in self.poor_witness_list:
-                            observer_class = 1
-                        else:
-                            observer_class = 0
                         report_csv.write(
-                            f"{reports_from_node_i[0]},{reports_on_node_j[0]},{reports_on_node_j[1].csv_output()},{observer_class}\n"
+                            f"{reports_from_node_i[0]},{reports_on_node_j[0]},{reports_on_node_j[1].csv_output()}\n"
                         )
 
-    def read_data(self, filename, delimiter=","):
-        train_data = []
-        notes = []
-        observer_class = []
-
-        with open(filename) as report_csv:
-            csv_reader = csv.reader(report_csv, delimiter=delimiter)
-            for row in csv_reader:
-                train_data.append(row[:4] + row[5:-1])
-                notes.append(row[4])
-                observer_class.append(row[-1])
-
-        return train_data, notes, observer_class
-
     def train_svm(self):
-        print("Reading data...")
-        train_data, notes, observer_class = self.read_data()
-        print("Training SVMs...")
+        '''
+        Fit a pair of SVMs to predict expected notes and observer class respectively.
+        '''
+        train_data, notes = read_data(self.__train_filename)
         note_svm = SVM.create_and_fit_svm(train_data, notes, 5, 0.1)
-        # witness_svm = SVM.create_and_fit_svm(train_data, observer_class, 5, 0.1)
 
-        return note_svm  # , witness_svm
+        return note_svm
 
     def evolve_svm(self):
-        data, notes, observer_class = self.read_data()
-        return SVM.evolve(data, notes, data, notes)
+        '''
+        Perform an evolutionary algorithm to find the optimal values of C and gamma
+        for the respective SVMs.
+        '''
+        train_data, train_notes = read_data(self.__train_filename)
+        test_data, test_notes = read_data(self.__test_filename)
+
+        with open("svm_params.csv", "w") as param_file:
+            total_reporters = len(train_data.keys())
+            progress = 0
+            Functions.print_progress(progress, total_reporters)
+            for reporter_id in train_data.keys():
+                svm_params = SVM.evolve(
+                    train_data[reporter_id],
+                    train_notes[reporter_id],
+                    test_data[reporter_id],
+                    test_notes[reporter_id]
+                )
+                progress += 1
+                Functions.print_progress(progress, total_reporters)
+                param_file.write(f"{reporter_id},{svm_params}\n")
+        print()
+
+    def train_ann(self):
+        train_data, train_notes = read_data(self.__train_filename, dict_mode=False)
+        test_data, test_notes = read_data(self.__test_filename, dict_mode=False)
+        ANN.create_and_train_ann(train_data, train_notes, test_data, test_notes)
+
+    def load_classifiers(self):
+        '''
+        Load the classifiers for each node in the network.
+        '''
+        svms = dict()
+        data, notes = read_data(self.__train_filename)
+
+        with open("svm_params.csv") as param_file:
+            param_reader = csv.reader(param_file)
+            for row in param_reader:
+                svms[int(row[0])] = SVM.create_and_fit_svm(data, notes, int(row[1]), int(row[2]))
+
+        return svms
+
+
+def read_data(filename, delimiter=",", dict_mode=True):
+    '''
+    Read data from a csv of reports.
+    '''
+    if dict_mode:
+        train_data = dict()
+        notes = dict()
+    else:
+        train_data = []
+        notes = []
+
+    with open(filename) as report_csv:
+        csv_reader = csv.reader(report_csv, delimiter=delimiter)
+        for row in csv_reader:
+            if dict_mode:
+                reporter_id = int(row[0])
+                if train_data.get(reporter_id):
+                    train_data[reporter_id].append(row[1:-1])
+                    notes[reporter_id].append(row[-1])
+                else:
+                    train_data[reporter_id] = [row[1:-1]]
+                    notes[reporter_id] = [row[-1]]
+            else:
+                train_data.append(row[:-1])
+                notes.append(row[-1])
+
+    return train_data, notes

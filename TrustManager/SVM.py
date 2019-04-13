@@ -35,7 +35,7 @@ def evolve(train_inputs, train_labels, test_inputs, test_labels):
     genome, acc = hill_climb(
         train_inputs, train_labels, test_inputs, test_labels
     )
-    return f"C: {genome[0]}, gamma: {genome[1]}, accuracy: {acc}"
+    return f"{genome[0]},{genome[1]}"
 
 
 def normalise_genome(genome):
@@ -49,7 +49,7 @@ def generate_genome():
     '''
     Generate a random starting genome.
     '''
-    return [float(g) for g in list(np.random.normal(50, 20, 2))]
+    return [float(np.random.normal(50, 2)), float(np.random.normal(1, 0.5))]
 
 
 def mutate_genome(genome):
@@ -60,29 +60,12 @@ def mutate_genome(genome):
     mutant_genome = genome.copy()
 
     if np.random.normal() < 0:
-        return generate_genome()  # Introduce annealing
+        step_size = 3 * np.random.normal(0, 5)
 
     for index_mutant_genome in enumerate(mutant_genome):
-        mutant_genome[index_mutant_genome[0]] += \
-            float(step_size * np.random.normal(0, 5))
+        mutant_genome[index_mutant_genome[0]] += float(step_size * np.random.normal(0, 1))
 
     return mutant_genome
-
-
-def crossover(genome_a, genome_b):
-    '''
-    Possibly crossover genome_b into genome_a and return the result.
-    '''
-    crossover_genome = []
-    crossed_over = False
-
-    for gene_pair in zip(genome_a, genome_b):
-        if not crossed_over and np.random.normal() < 0:
-            crossover_genome.append(gene_pair[1])
-        else:
-            crossover_genome.append(gene_pair[0])
-
-    return crossover_genome
 
 
 def hill_climb(train_inputs, train_labels, test_inputs, test_labels, acc_goal=99):
@@ -90,8 +73,9 @@ def hill_climb(train_inputs, train_labels, test_inputs, test_labels, acc_goal=99
     Evolutionary algorithm to find the optimal number of neurons for the ANN.
     '''
     counter = 0
-    n_epochs = 100_000
+    n_epochs = 10_000
     genome = generate_genome()
+    normalise_genome(genome)
     svm_champ = create_and_fit_svm(
         train_inputs, train_labels, genome[0], genome[1]
     )
@@ -99,8 +83,7 @@ def hill_climb(train_inputs, train_labels, test_inputs, test_labels, acc_goal=99
 
     while (acc_champ < acc_goal) and (counter < n_epochs):
         mutant_genome = mutate_genome(genome)
-        mutant_genome = crossover(mutant_genome, genome)
-        print(f"Epoch: {counter}, Current mutant genome: {mutant_genome}, Current champion genome: {genome} at accuracy: {acc_champ}")
+        normalise_genome(mutant_genome)
         svm_mutant = create_and_fit_svm(
             train_inputs, train_labels, mutant_genome[0], mutant_genome[1]
         )

@@ -29,4 +29,4 @@ class Report:
         '''
         Output contained data in a format suitable for a csv
         '''
-        return f"{self.__service},{self.__capability},{self.__note},{self.__time}"
+        return f"{self.__service},{self.__capability},{self.__note}"

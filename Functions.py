@@ -19,7 +19,7 @@ def print_progress(current_epoch, total_epochs, progress_len=20):
         )
         progress_bar += "".join(["." for _ in range(unprogressed)])
         progress_bar += "]"
-        print(f"{progress_bar} {progress}%")
+        print(f"\r{progress_bar} {progress}%", end="\r")
 
 
 def wrong_note(note):

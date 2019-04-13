@@ -37,7 +37,7 @@ class TestTrustModel(unittest.TestCase):
         self.assertEqual(report.get_note(), note)
         self.assertEqual(report.get_time(), time)
         self.assertEqual(
-            report.csv_output(), f"{service},{capability},{note},{time}"
+            report.csv_output(), f"{service},{capability},{note}"
         )
 
     def test_wrong_note(self):
@@ -75,7 +75,7 @@ class TestTrustModel(unittest.TestCase):
         num_malicious = 0
 
         for node in trust_manager.get_network():
-            if (node.get_capability() < 100) or (node.get_service() < 100):
+            if (node.get_capability() < TrustManager.CAP_MAX) or (node.get_service() < TrustManager.SERVICE_MAX):
                 num_constrained += 1
             if isinstance(node, BadMouther.BadMouther):
                 num_malicious += 1
@@ -109,10 +109,10 @@ class TestTrustModel(unittest.TestCase):
         self.assertEqual(report.get_time(), time)
 
     def test_bootstrap(self):
-        trust_manager = TrustManager.TrustManager()
+        trust_manager = TrustManager.TrustManager(no_of_nodes=50)
         no_of_transactions = 5
 
-        trust_manager.bootstrap(no_of_transactions)
+        trust_manager.bootstrap(no_of_transactions, False)
         self.assertEqual(np.shape(trust_manager.get_reports()), (50, 50))
 
 
