@@ -1,6 +1,9 @@
 import csv
 
 import numpy as np
+import joblib
+import graphviz
+from tensorflow import keras
 
 import Functions
 import Node
@@ -17,10 +20,12 @@ class TrustManager:
     Create and control the network.
     '''
     def __init__(self, no_of_nodes=50, constrained_nodes=0.5, malicious_nodes=0.1, malicious_reporters=0.1,
-                 train_filename="reports-train.csv", test_filename="reports-test.csv"):
+                 use_svm=True, train_filename="reports-train.csv", test_filename="reports-test.csv"):
         self.__network = []
         self.__train_filename = train_filename
         self.__test_filename = test_filename
+        self.__use_svm = use_svm
+        self.__predicter = None
         # A real trust model would not be aware of these lists
         # these are for the training
         constrained_list = Functions.get_conditioned_ids(
@@ -55,11 +60,26 @@ class TrustManager:
         self.__train_filename = train_filename
         self.__test_filename = test_filename
 
+    def set_use_svm_flag(self, use_svm):
+        self.__use_svm = use_svm
+
     def get_network(self):
         return self.__network
 
     def get_reports(self):
         return self.__reports
+
+    def get_no_of_nodes(self):
+        return len(self.__network)
+
+    def reset_predicter(self):
+        self.__predicter = None
+
+    def save(self):
+        if self.__predicter:
+            del self.__predicter
+
+        joblib.dump(self, "trust_manager.pkl")
 
     def bootstrap(self, epochs=100, filewrite=True):
         '''
@@ -106,60 +126,124 @@ class TrustManager:
                             f"{reports_from_node_i[0]},{reports_on_node_j[0]},{reports_on_node_j[1].csv_output()}\n"
                         )
 
-    def train_svm(self):
+    def train(self):
         '''
-        Fit a pair of SVMs to predict expected notes and observer class respectively.
+        Train the predicter.
         '''
-        train_data, notes = read_data(self.__train_filename)
-        note_svm = SVM.create_and_fit_svm(train_data, notes, 5, 0.1)
-
-        return note_svm
+        if self.__use_svm:
+            self.evolve_svm()
+            self.load_svms()
+        else:
+            self.train_ann()
+            self.load_ann()
 
     def evolve_svm(self):
         '''
         Perform an evolutionary algorithm to find the optimal values of C and gamma
         for the respective SVMs.
         '''
-        train_data, train_notes = read_data(self.__train_filename)
-        test_data, test_notes = read_data(self.__test_filename)
+        train_data, train_notes = read_data(self.__train_filename, dict_mode=True)
+        test_data, test_notes = read_data(self.__test_filename, dict_mode=True)
 
-        with open("svm_params.csv", "w") as param_file:
-            total_reporters = len(train_data.keys())
-            progress = 0
+        svms = dict()
+        total_reporters = len(train_data.keys())
+        progress = 0
+
+        Functions.print_progress(progress, total_reporters)
+        for reporter_id in train_data.keys():
+            svms[reporter_id] = SVM.evolve(
+                train_data[reporter_id], train_notes[reporter_id], test_data[reporter_id], test_notes[reporter_id]
+            )
+            progress += 1
             Functions.print_progress(progress, total_reporters)
-            for reporter_id in train_data.keys():
-                svm_params = SVM.evolve(
-                    train_data[reporter_id],
-                    train_notes[reporter_id],
-                    test_data[reporter_id],
-                    test_notes[reporter_id]
-                )
-                progress += 1
-                Functions.print_progress(progress, total_reporters)
-                param_file.write(f"{reporter_id},{svm_params}\n")
+
+        joblib.dump(svms, "SVMs.pkl")
         print()
 
     def train_ann(self):
-        train_data, train_notes = read_data(self.__train_filename, dict_mode=False)
-        test_data, test_notes = read_data(self.__test_filename, dict_mode=False)
-        ANN.create_and_train_ann(train_data, train_notes, test_data, test_notes)
+        train_data, train_notes = read_data(self.__train_filename)
+        test_data, test_notes = read_data(self.__test_filename)
+        ANN.create_and_train_ann(train_data, train_notes, test_data, test_notes).save("ANN.h5")
 
-    def load_classifiers(self):
+    def load_svms(self):
         '''
-        Load the classifiers for each node in the network.
+        Load the kernel machine classifiers for each node in the network.
         '''
-        svms = dict()
-        data, notes = read_data(self.__train_filename)
+        self.__predicter = joblib.load("SVMs.pkl")
 
-        with open("svm_params.csv") as param_file:
-            param_reader = csv.reader(param_file)
-            for row in param_reader:
-                svms[int(row[0])] = SVM.create_and_fit_svm(data, notes, int(row[1]), int(row[2]))
+    def load_ann(self):
+        '''
+        Load the neural network classifier.
+        '''
+        self.__predicter = keras.models.load_model("ANN.h5")
 
-        return svms
+    def get_all_recommendations(self, service_target, capability_target):
+        trusted_lists = dict()
+        no_of_nodes = self.get_no_of_nodes()
+
+        for client_id in range(no_of_nodes):
+            if self.__use_svm:
+                if not self.__predicter:
+                    self.load_svms()
+                trusted_lists[client_id] = SVM.get_trusted_list(
+                    self.__predicter[client_id], service_target, capability_target, no_of_nodes
+                )
+            else:
+                if not self.__predicter:
+                    self.load_ann()
+                trusted_lists[client_id] = ANN.get_trusted_list(
+                    self.__predicter, client_id, service_target, capability_target, no_of_nodes
+                )
+
+        return trusted_lists
+
+    def graph_recommendations(self, client_id, service_target, capability_target):
+        graph = graphviz.Digraph(comment="Recommendations DiGraph")
+        trusted_lists = self.get_all_recommendations(service_target, capability_target)
+        for node_id in range(self.get_no_of_nodes()):
+            graph.node(
+                f"{node_id}",
+                f"{node_id}",
+                color="red" if self.__network[node_id].is_malicious() else "blue",
+                style="filled",
+                fontcolor="white"
+            )
+        for other_node_id, trust_val in trusted_lists[client_id].items():
+            graph.edge(
+                f"{client_id}",
+                f"{other_node_id}",
+                color="red" if trust_val == -1 else "purple" if trust_val == 0 else "blue"
+            )
+        graph.render("recommendations.gv", view=False)
 
 
-def read_data(filename, delimiter=",", dict_mode=True):
+    def find_best_servers(self, client_id, service_target, capability_target):
+        if self.__use_svm:
+            if not self.__predicter:
+                self.load_svms()
+            trusted_list = SVM.get_trusted_list(
+                self.__predicter[client_id], service_target, capability_target, len(self.__network)
+            )
+        else:
+            if not self.__predicter:
+                self.load_ann()
+            trusted_list = ANN.get_trusted_list(
+                self.__predicter, client_id, service_target, capability_target, len(self.__network)
+            )
+        return trusted_list
+
+
+def load(train_filename, test_filename, use_svm):
+    trust_manager = joblib.load("trust_manager.pkl")
+
+    trust_manager.set_filenames(train_filename, test_filename)
+    trust_manager.set_use_svm_flag(use_svm)
+    trust_manager.reset_predicter()
+
+    return trust_manager
+
+
+def read_data(filename, delimiter=",", dict_mode=False):
     '''
     Read data from a csv of reports.
     '''

@@ -31,11 +31,20 @@ def find_accuracy(svm, data, labels):
     return 100 * corrects / len(labels)
 
 
+def get_trusted_list(svm, service_target, capability_target, no_of_nodes):
+    trusted_list = dict()
+
+    for i in range(no_of_nodes):
+        trusted_list[i] = int(svm.predict([[i, service_target, capability_target]])[0])
+
+    return trusted_list
+
+
 def evolve(train_inputs, train_labels, test_inputs, test_labels):
-    genome, acc = hill_climb(
+    genome = hill_climb(
         train_inputs, train_labels, test_inputs, test_labels
     )
-    return f"{genome[0]},{genome[1]}"
+    return create_and_fit_svm(train_inputs, train_labels, genome[0], genome[1])
 
 
 def normalise_genome(genome):
@@ -93,4 +102,4 @@ def hill_climb(train_inputs, train_labels, test_inputs, test_labels, acc_goal=99
             genome = mutant_genome
             acc_champ = acc_mutant
         counter += 1
-    return genome, acc_champ
+    return genome

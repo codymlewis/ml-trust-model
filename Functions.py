@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def print_progress(current_epoch, total_epochs, progress_len=20):
+def print_progress(current_epoch, total_epochs, progress_len=31):
     '''
     Print a progress bar about how far a process has went through it's epochs.
     '''
@@ -15,7 +15,7 @@ def print_progress(current_epoch, total_epochs, progress_len=20):
             unprogressed = progress_len - 1
         progress_bar = "["
         progress_bar += "".join(
-            ["#" for _ in range(progress_bar_progress - 1)]
+            ["=" for _ in range(progress_bar_progress - 2)] + [">" if unprogressed > 0 else "="]
         )
         progress_bar += "".join(["." for _ in range(unprogressed)])
         progress_bar += "]"
