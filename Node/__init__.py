@@ -15,7 +15,7 @@ class Node:
     '''
     A node in the trust managed network.
     '''
-    def __init__(self, service=100, capability=100, is_malicious=False):
+    def __init__(self, service, capability, is_malicious=False):
         self.__service = service
         self.__capability = capability
         self.__is_malicious = is_malicious
@@ -38,6 +38,9 @@ class Node:
         return Report.Report(service_target, capability_target, note, time)
 
     def take_note(self, proxy, service_target, capability_target):
+        '''
+        Take note of the service that the proxy provided.
+        '''
         if proxy.is_malicious():
             note = -1
         elif proxy.get_service() >= service_target and \

@@ -1,3 +1,4 @@
+import os
 import csv
 
 import numpy as np
@@ -25,7 +26,7 @@ class TrustManager:
         self.__train_filename = train_filename
         self.__test_filename = test_filename
         self.__use_svm = use_svm
-        self.__predicter = None
+        self.__predictor = None
         # A real trust model would not be aware of these lists
         # these are for the training
         constrained_list = Functions.get_conditioned_ids(
@@ -72,14 +73,15 @@ class TrustManager:
     def get_no_of_nodes(self):
         return len(self.__network)
 
-    def reset_predicter(self):
-        self.__predicter = None
+    def reset_predictor(self):
+        self.__predictor = None
 
     def save(self):
-        if self.__predicter:
-            del self.__predicter
-
-        joblib.dump(self, "trust_manager.pkl")
+        if self.__predictor:
+            del self.__predictor
+        if not os.path.exists("data"):
+            os.makedirs("data")
+        joblib.dump(self, "data/trust_manager.pkl")
 
     def bootstrap(self, epochs=100, filewrite=True):
         '''
@@ -128,7 +130,7 @@ class TrustManager:
 
     def train(self):
         '''
-        Train the predicter.
+        Train the predictor.
         '''
         if self.__use_svm:
             self.evolve_svm()
@@ -157,25 +159,32 @@ class TrustManager:
             progress += 1
             Functions.print_progress(progress, total_reporters)
 
-        joblib.dump(svms, "SVMs.pkl")
+        if not os.path.exists("data"):
+            os.makedirs("data")
+        joblib.dump(svms, "data/SVMs.pkl")
         print()
 
     def train_ann(self):
+        '''
+        Train the artificial neural network.
+        '''
         train_data, train_notes = read_data(self.__train_filename)
         test_data, test_notes = read_data(self.__test_filename)
-        ANN.create_and_train_ann(train_data, train_notes, test_data, test_notes).save("ANN.h5")
+        if not os.path.exists("data"):
+            os.makedirs("data")
+        ANN.create_and_train_ann(train_data, train_notes, test_data, test_notes).save("data/ANN.h5")
 
     def load_svms(self):
         '''
         Load the kernel machine classifiers for each node in the network.
         '''
-        self.__predicter = joblib.load("SVMs.pkl")
+        self.__predictor = joblib.load("data/SVMs.pkl")
 
     def load_ann(self):
         '''
         Load the neural network classifier.
         '''
-        self.__predicter = keras.models.load_model("ANN.h5")
+        self.__predictor = keras.models.load_model("data/ANN.h5")
 
     def get_all_recommendations(self, service_target, capability_target):
         trusted_lists = dict()
@@ -183,21 +192,24 @@ class TrustManager:
 
         for client_id in range(no_of_nodes):
             if self.__use_svm:
-                if not self.__predicter:
+                if not self.__predictor:
                     self.load_svms()
                 trusted_lists[client_id] = SVM.get_trusted_list(
-                    self.__predicter[client_id], service_target, capability_target, no_of_nodes
+                    self.__predictor[client_id], service_target, capability_target, no_of_nodes
                 )
             else:
-                if not self.__predicter:
+                if not self.__predictor:
                     self.load_ann()
                 trusted_lists[client_id] = ANN.get_trusted_list(
-                    self.__predicter, client_id, service_target, capability_target, no_of_nodes
+                    self.__predictor, client_id, service_target, capability_target, no_of_nodes
                 )
 
         return trusted_lists
 
     def graph_recommendations(self, client_id, service_target, capability_target):
+        '''
+        Create a DiGraph of the recommendations for the client at the target service and capability.
+        '''
         graph = graphviz.Digraph(comment="Recommendations DiGraph")
         trusted_lists = self.get_all_recommendations(service_target, capability_target)
         for node_id in range(self.get_no_of_nodes()):
@@ -214,31 +226,39 @@ class TrustManager:
                 f"{other_node_id}",
                 color="red" if trust_val == -1 else "purple" if trust_val == 0 else "blue"
             )
-        graph.render("recommendations.gv", view=False)
-
+        if not os.path.exists("graphs"):
+            os.makedirs("graphs")
+        predictor_name = "SVM" if self.__use_svm else "ANN"
+        graph.render(f"graphs/id{client_id}_s{service_target}_c{capability_target}_{predictor_name}_recommendations.gv", view=False)
 
     def find_best_servers(self, client_id, service_target, capability_target):
+        '''
+        Give a list of trusted nodes for the client at the target service and capability.
+        '''
         if self.__use_svm:
-            if not self.__predicter:
+            if not self.__predictor:
                 self.load_svms()
             trusted_list = SVM.get_trusted_list(
-                self.__predicter[client_id], service_target, capability_target, len(self.__network)
+                self.__predictor[client_id], service_target, capability_target, len(self.__network)
             )
         else:
-            if not self.__predicter:
+            if not self.__predictor:
                 self.load_ann()
             trusted_list = ANN.get_trusted_list(
-                self.__predicter, client_id, service_target, capability_target, len(self.__network)
+                self.__predictor, client_id, service_target, capability_target, len(self.__network)
             )
         return trusted_list
 
 
 def load(train_filename, test_filename, use_svm):
-    trust_manager = joblib.load("trust_manager.pkl")
+    '''
+    Load a previously saved trust manager.
+    '''
+    trust_manager = joblib.load("data/trust_manager.pkl")
 
     trust_manager.set_filenames(train_filename, test_filename)
     trust_manager.set_use_svm_flag(use_svm)
-    trust_manager.reset_predicter()
+    trust_manager.reset_predictor()
 
     return trust_manager
 

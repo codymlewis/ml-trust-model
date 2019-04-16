@@ -11,6 +11,9 @@ Date: 2019-04-12
 
 
 def create_and_train_ann(train_data, train_labels, test_data, test_labels):
+    '''
+    Create a neural network and train it on the given data.
+    '''
     model = keras.models.Sequential()
     model.add(keras.layers.Dense(64, input_shape=(4,)))
     model.add(keras.layers.Activation('relu'))
@@ -34,6 +37,9 @@ def create_and_train_ann(train_data, train_labels, test_data, test_labels):
 
 
 def get_trusted_list(ann, client_id, service_target, capability_target, no_of_nodes):
+    '''
+    Get the list of nodes that client trusts for a given target service, and capability.
+    '''
     trusted_list = dict()
 
     for i in range(no_of_nodes):
@@ -43,5 +49,8 @@ def get_trusted_list(ann, client_id, service_target, capability_target, no_of_no
 
 
 def unbinarize(arr):
+    '''
+    Convert a binarized array into the respective classes.
+    '''
     value = list(arr)
     return [-1, 0, 1][value.index(max(value))]

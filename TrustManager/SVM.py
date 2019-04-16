@@ -32,6 +32,9 @@ def find_accuracy(svm, data, labels):
 
 
 def get_trusted_list(svm, service_target, capability_target, no_of_nodes):
+    '''
+    Get the list of nodes that client trusts for a given target service, and capability.
+    '''
     trusted_list = dict()
 
     for i in range(no_of_nodes):
@@ -41,6 +44,9 @@ def get_trusted_list(svm, service_target, capability_target, no_of_nodes):
 
 
 def evolve(train_inputs, train_labels, test_inputs, test_labels):
+    '''
+    Perform an evolutionary algorithm to optimize SVM parameters.
+    '''
     genome = hill_climb(
         train_inputs, train_labels, test_inputs, test_labels
     )
@@ -48,10 +54,12 @@ def evolve(train_inputs, train_labels, test_inputs, test_labels):
 
 
 def normalise_genome(genome):
+    '''
+    Make sure the genome does not have invalid input.
+    '''
     for index_gene in enumerate(genome):
         while genome[index_gene[0]] <= 0:
-            genome[index_gene[0]] = \
-                float(np.random.normal(10, 8, 1))
+            genome[index_gene[0]] = float(np.random.normal(10, 8, 1))
 
 
 def generate_genome():
@@ -79,7 +87,7 @@ def mutate_genome(genome):
 
 def hill_climb(train_inputs, train_labels, test_inputs, test_labels, acc_goal=99):
     '''
-    Evolutionary algorithm to find the optimal number of neurons for the ANN.
+    Evolutionary algorithm to find the optimal parameters for the SVM.
     '''
     counter = 0
     n_epochs = 10_000

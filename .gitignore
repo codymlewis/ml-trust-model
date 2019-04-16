@@ -393,3 +393,5 @@ tags.lock
 Session.vim
 *.csv
 *.pkl
+*.pdf
+*.gv
