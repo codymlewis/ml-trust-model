@@ -51,8 +51,8 @@ class TestTrustModel(unittest.TestCase):
         '''
         Test that note taking returns the expected values.
         '''
-        node = Node.Node()
-        proxy = Node.Node()
+        node = Node.Node(100, 100)
+        proxy = Node.Node(100, 100)
         self.assertEqual(node.take_note(proxy, 50, 50), 1)
         proxy = Node.Node(100, 1)
         self.assertEqual(node.take_note(proxy, 50, 50), 0)
@@ -88,7 +88,7 @@ class TestTrustModel(unittest.TestCase):
         Test the report creation of the bad mouther.
         '''
         proxy = Node.Node(100, 100)
-        bad_mouther = BadMouther.BadMouther()
+        bad_mouther = BadMouther.BadMouther(1, 1)
         self.make_report(bad_mouther, proxy, note=-1)
         proxy = Node.Node(1, 100)
         self.make_report(bad_mouther, proxy, note=-1)
@@ -97,8 +97,8 @@ class TestTrustModel(unittest.TestCase):
         proxy = Node.Node(1, 1)
         self.make_report(bad_mouther, proxy, note=-1)
 
-    def make_report(self, client, proxy, service=50,
-                    capability=50, note=1, time=0):
+    def make_report(self, client, proxy, service=1,
+                    capability=1, note=1, time=0):
         '''
         Test that a report matches expected values
         '''
