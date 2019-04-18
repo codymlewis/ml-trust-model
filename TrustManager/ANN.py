@@ -2,6 +2,8 @@ from tensorflow import keras
 import numpy as np
 import sklearn.preprocessing as skp
 
+import Functions
+
 '''
 Use an artificial neural network for trust management.
 
@@ -15,7 +17,7 @@ def create_and_train_ann(train_data, train_labels, test_data, test_labels):
     Create a neural network and train it on the given data.
     '''
     model = keras.models.Sequential()
-    model.add(keras.layers.Dense(64, input_shape=(4,)))
+    model.add(keras.layers.Dense(128, input_shape=(3,)))
     model.add(keras.layers.Activation('relu'))
     model.add(keras.layers.Dense(128))
     model.add(keras.layers.Activation('relu'))
@@ -31,7 +33,7 @@ def create_and_train_ann(train_data, train_labels, test_data, test_labels):
     model.compile(loss="mean_squared_error", optimizer=adam, metrics=['accuracy'])
     data = np.array(train_data + test_data)
     labels = skp.label_binarize(np.array(train_labels + test_labels), ["-1", "0", "1"])
-    model.fit(x=data, y=labels, epochs=300, validation_split=0.5)
+    model.fit(x=data, y=labels, epochs=4000, validation_split=0.5)
 
     return model
 
@@ -54,3 +56,11 @@ def unbinarize(arr):
     '''
     value = list(arr)
     return [-1, 0, 1][value.index(max(value))]
+
+
+def time_predict(ann, node_id, service_target, capability_target):
+    '''
+    Find the average time to predict.
+    '''
+    predict = Functions.wrap_func(ann.predict, np.array([[node_id, service_target, capability_target]]))
+    return Functions.time(predict)

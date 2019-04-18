@@ -1,7 +1,15 @@
+import timeit
 import numpy as np
 
+'''
+A few utility functions.
 
-def print_progress(current_epoch, total_epochs, progress_len=31):
+Author: Cody Lewis
+Date: 2019-03-30
+'''
+
+
+def print_progress(current_epoch, total_epochs, progress_len=31, prefix=""):
     '''
     Print a progress bar about how far a process has went through it's epochs.
     '''
@@ -19,7 +27,7 @@ def print_progress(current_epoch, total_epochs, progress_len=31):
         )
         progress_bar += "".join(["." for _ in range(unprogressed)])
         progress_bar += "]"
-        print(f"\r{progress_bar} {progress}%", end="\r")
+        print(f"\r{prefix} {progress_bar} {progress}%", end="\r")
 
 
 def wrong_note(note):
@@ -41,3 +49,26 @@ def get_conditioned_ids(no_of_nodes, condition_factor):
         conditioned_list.append(ids.pop(np.random.randint(len(ids))))
 
     return conditioned_list
+
+
+def calc_percentage(amount, total):
+    '''
+    Calculate the percentage of amount from the total.
+    '''
+    return 100 * amount / total
+
+
+def wrap_func(func, *args, **kwargs):
+    '''
+    Create a wrapper around a function, so it can be timed.
+    '''
+    def wrapped():
+        return func(*args, **kwargs)
+    return wrapped
+
+
+def time(func):
+    '''
+    Time a function.
+    '''
+    return timeit.timeit(func, number=1000) / 1000

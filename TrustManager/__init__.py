@@ -15,6 +15,13 @@ import TrustManager.ANN as ANN
 CAP_MAX = 10
 SERVICE_MAX = 6
 
+'''
+Manage the network and establish trust between nodes within it.
+
+Author: Cody Lewis
+Date: 2019-03-30
+'''
+
 
 class TrustManager:
     '''
@@ -93,7 +100,7 @@ class TrustManager:
         for i in range(1, epochs + 1):
             self.__artificial_transactions(i, self.__train_filename if filewrite else None)
             self.__artificial_transactions(i, self.__test_filename if filewrite else None)
-            Functions.print_progress(i, epochs)
+            Functions.print_progress(i, epochs, prefix=f"{i}/{epochs}")
         print()
         print("Done.")
 
@@ -144,20 +151,20 @@ class TrustManager:
         Perform an evolutionary algorithm to find the optimal values of C and gamma
         for the respective SVMs.
         '''
-        train_data, train_notes = read_data(self.__train_filename, dict_mode=True)
-        test_data, test_notes = read_data(self.__test_filename, dict_mode=True)
+        train_data, train_notes = read_data(self.__train_filename)
+        test_data, test_notes = read_data(self.__test_filename)
 
         svms = dict()
         total_reporters = len(train_data.keys())
         progress = 0
 
-        Functions.print_progress(progress, total_reporters)
-        for reporter_id in train_data.keys():
+        Functions.print_progress(progress, total_reporters, prefix=f"{progress}/{total_reporters}")
+        for reporter_id, _ in train_data.items():
             svms[reporter_id] = SVM.evolve(
                 train_data[reporter_id], train_notes[reporter_id], test_data[reporter_id], test_notes[reporter_id]
             )
             progress += 1
-            Functions.print_progress(progress, total_reporters)
+            Functions.print_progress(progress, total_reporters, prefix=f"{progress}/{total_reporters}")
 
         if not os.path.exists("data"):
             os.makedirs("data")
@@ -170,9 +177,12 @@ class TrustManager:
         '''
         train_data, train_notes = read_data(self.__train_filename)
         test_data, test_notes = read_data(self.__test_filename)
-        if not os.path.exists("data"):
-            os.makedirs("data")
-        ANN.create_and_train_ann(train_data, train_notes, test_data, test_notes).save("data/ANN.h5")
+
+        if not os.path.exists("data/ANN"):
+            os.makedirs("data/ANN")
+        for reporter_id, _ in train_data.items():
+            ANN.create_and_train_ann(train_data[reporter_id], train_notes[reporter_id],
+                                     test_data[reporter_id], test_notes[reporter_id]).save(f"data/ANN/{reporter_id}.h5")
 
     def load_svms(self):
         '''
@@ -184,9 +194,14 @@ class TrustManager:
         '''
         Load the neural network classifier.
         '''
-        self.__predictor = keras.models.load_model("data/ANN.h5")
+        self.__predictor = dict()
+        for node_id in range(len(self.__network)):
+            self.__predictor[node_id] = keras.models.load_model(f"data/ANN/{node_id}.h5")
 
     def get_all_recommendations(self, service_target, capability_target):
+        '''
+        Get all of the predicted recommendations from each node, for each node.
+        '''
         trusted_lists = dict()
         no_of_nodes = self.get_no_of_nodes()
 
@@ -249,6 +264,74 @@ class TrustManager:
             )
         return trusted_list
 
+    def simulate_transactions(self, epochs):
+        '''
+        Simulate epochs number of random transactions and return the percentage of bad
+        transactions that have occured.
+        '''
+        print("Getting all predictions...")
+        predictions = dict()
+        for service in range(SERVICE_MAX + 1):
+            predictions[service] = dict()
+            for capability in range(CAP_MAX + 1):
+                predictions[service][capability] = self.get_all_recommendations(service, capability)
+
+        bad_transactions = 0
+        okay_transactions = 0
+        good_transactions = 0
+        print("Simulating transactions...")
+        for _ in range(0, epochs):
+            service = int(np.floor(np.random.rand() * (SERVICE_MAX + 1)))
+            capability = int(np.floor(np.random.rand() * (CAP_MAX + 1)))
+            client_index = int(np.floor(np.random.rand() * len(self.__network)))
+            good_indices = []
+            okay_indices = []
+
+            for index, prediction in predictions[service][capability][client_index].items():
+                if index != client_index:
+                    if prediction == 1:
+                        good_indices.append(index)
+                    elif prediction == 0:
+                        okay_indices.append(index)
+
+            if good_indices:
+                server_index = good_indices[int(np.floor(np.random.rand() * len(good_indices)))]
+                note = self.__network[client_index].take_note(self.__network[server_index], service, capability)
+            elif okay_indices:
+                server_index = okay_indices[int(np.floor(np.random.rand() * len(okay_indices)))]
+                note = self.__network[client_index].take_note(self.__network[server_index], service, capability)
+            else:
+                note = -1
+
+            if note == -1:
+                bad_transactions += 1
+            elif note == 0:
+                okay_transactions += 1
+            else:
+                good_transactions += 1
+
+        return Functions.calc_percentage(bad_transactions, epochs), \
+            Functions.calc_percentage(okay_transactions, epochs), \
+            Functions.calc_percentage(good_transactions, epochs)
+
+    def time_predict(self):
+        '''
+        Find the average time it take to make a prediction.
+        '''
+        client = 1
+        server = 2
+        service = 1
+        capability = 1
+        if self.__use_svm:
+            if not self.__predictor:
+                self.load_svms()
+            avg_time = SVM.time_predict(self.__predictor[client], server, service, capability)
+        else:
+            if not self.__predictor:
+                self.load_ann()
+            avg_time = ANN.time_predict(self.__predictor[client], server, service, capability)
+        return avg_time
+
 
 def load(train_filename, test_filename, use_svm):
     '''
@@ -263,30 +346,22 @@ def load(train_filename, test_filename, use_svm):
     return trust_manager
 
 
-def read_data(filename, delimiter=",", dict_mode=False):
+def read_data(filename, delimiter=","):
     '''
     Read data from a csv of reports.
     '''
-    if dict_mode:
-        train_data = dict()
-        notes = dict()
-    else:
-        train_data = []
-        notes = []
+    train_data = dict()
+    notes = dict()
 
     with open(filename) as report_csv:
         csv_reader = csv.reader(report_csv, delimiter=delimiter)
         for row in csv_reader:
-            if dict_mode:
-                reporter_id = int(row[0])
-                if train_data.get(reporter_id):
-                    train_data[reporter_id].append(row[1:-1])
-                    notes[reporter_id].append(row[-1])
-                else:
-                    train_data[reporter_id] = [row[1:-1]]
-                    notes[reporter_id] = [row[-1]]
+            reporter_id = int(row[0])
+            if train_data.get(reporter_id):
+                train_data[reporter_id].append(row[1:-1])
+                notes[reporter_id].append(row[-1])
             else:
-                train_data.append(row[:-1])
-                notes.append(row[-1])
+                train_data[reporter_id] = [row[1:-1]]
+                notes[reporter_id] = [row[-1]]
 
     return train_data, notes

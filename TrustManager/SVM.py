@@ -1,6 +1,8 @@
 import numpy as np
 from sklearn.svm import SVC
 
+import Functions
+
 '''
 Use a Kernel Machine for the trust management.
 '''
@@ -41,6 +43,14 @@ def get_trusted_list(svm, service_target, capability_target, no_of_nodes):
         trusted_list[i] = int(svm.predict([[i, service_target, capability_target]])[0])
 
     return trusted_list
+
+
+def time_predict(svm, node_id, service_target, capability_target):
+    '''
+    Find the average time to predict.
+    '''
+    predict = Functions.wrap_func(svm.predict, [[node_id, service_target, capability_target]])
+    return Functions.time(predict)
 
 
 def evolve(train_inputs, train_labels, test_inputs, test_labels):
