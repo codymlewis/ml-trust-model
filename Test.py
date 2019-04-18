@@ -67,9 +67,7 @@ class TestTrustModel(unittest.TestCase):
         constrained_nodes = 0.5
         poor_witnesses = 0.2
         malicious_nodes = 0.1
-        trust_manager = TrustManager.TrustManager(
-            no_of_nodes, constrained_nodes, poor_witnesses, malicious_nodes
-        )
+        trust_manager = TrustManager.TrustManager(no_of_nodes, constrained_nodes, poor_witnesses, malicious_nodes)
         self.assertEqual(len(trust_manager.get_network()), no_of_nodes)
         num_constrained = 0
         num_malicious = 0
@@ -112,7 +110,7 @@ class TestTrustModel(unittest.TestCase):
         trust_manager = TrustManager.TrustManager(no_of_nodes=50)
         no_of_transactions = 5
 
-        trust_manager.bootstrap(no_of_transactions, False)
+        trust_manager.bootstrap(no_of_transactions, False, verbose=False)
         self.assertEqual(np.shape(trust_manager.get_reports()), (50, 50))
 
 

@@ -90,19 +90,21 @@ class TrustManager:
             os.makedirs("data")
         joblib.dump(self, "data/trust_manager.pkl")
 
-    def bootstrap(self, epochs=100, filewrite=True):
+    def bootstrap(self, epochs=100, filewrite=True, verbose=True):
         '''
         Go through the network and perform artificial transactions to develop
         reports.
         '''
-        print(f"\nBootstrapping network for {epochs} epochs:")
-        Functions.print_progress(0, epochs)
+        if verbose:
+            print(f"\nBootstrapping network for {epochs} epochs:")
+            Functions.print_progress(0, epochs)
         for i in range(1, epochs + 1):
             self.__artificial_transactions(i, self.__train_filename if filewrite else None)
             self.__artificial_transactions(i, self.__test_filename if filewrite else None)
-            Functions.print_progress(i, epochs, prefix=f"{i}/{epochs}")
-        print()
-        print("Done.")
+            if verbose:
+                Functions.print_progress(i, epochs, prefix=f"{i}/{epochs}")
+        if verbose:
+            print()
 
     def __artificial_transactions(self, current_epoch, report_filename=None):
         '''
@@ -264,44 +266,51 @@ class TrustManager:
             )
         return trusted_list
 
-    def simulate_transactions(self, epochs):
+    def __find_and_rate_best_server(self, client_index, service, capability, predictions):
         '''
-        Simulate epochs number of random transactions and return the percentage of bad
-        transactions that have occured.
+        Predict the best server and return the note that the client gives it.
         '''
-        print("Getting all predictions...")
-        predictions = dict()
-        for service in range(SERVICE_MAX + 1):
-            predictions[service] = dict()
-            for capability in range(CAP_MAX + 1):
-                predictions[service][capability] = self.get_all_recommendations(service, capability)
+        good_indices = []
+        okay_indices = []
 
+        for index, prediction in predictions[service][capability][client_index].items():
+            if index != client_index:
+                if prediction == 1:
+                    good_indices.append(index)
+                elif prediction == 0:
+                    okay_indices.append(index)
+
+        if good_indices:
+            server_index = good_indices[int(np.floor(np.random.rand() * len(good_indices)))]
+            note = self.__network[client_index].take_note(self.__network[server_index], service, capability)
+        elif okay_indices:
+            server_index = okay_indices[int(np.floor(np.random.rand() * len(okay_indices)))]
+            note = self.__network[client_index].take_note(self.__network[server_index], service, capability)
+        else:
+            note = -1
+
+        return note
+
+    def __simulate_and_rate_trans(self, epochs):
+        '''
+        Simulate epochs transactions and count the number of various ratings given by clients.
+        '''
         bad_transactions = 0
         okay_transactions = 0
         good_transactions = 0
-        print("Simulating transactions...")
-        for _ in range(0, epochs):
+        predictions = dict()
+
+        Functions.print_progress(0, epochs, prefix=f"0/{epochs}")
+        for epoch in range(1, epochs + 1):
             service = int(np.floor(np.random.rand() * (SERVICE_MAX + 1)))
             capability = int(np.floor(np.random.rand() * (CAP_MAX + 1)))
             client_index = int(np.floor(np.random.rand() * len(self.__network)))
-            good_indices = []
-            okay_indices = []
+            if not predictions.get(service):
+                predictions[service] = dict()
+            if not predictions[service].get(capability):
+                predictions[service][capability] = self.get_all_recommendations(service, capability)
 
-            for index, prediction in predictions[service][capability][client_index].items():
-                if index != client_index:
-                    if prediction == 1:
-                        good_indices.append(index)
-                    elif prediction == 0:
-                        okay_indices.append(index)
-
-            if good_indices:
-                server_index = good_indices[int(np.floor(np.random.rand() * len(good_indices)))]
-                note = self.__network[client_index].take_note(self.__network[server_index], service, capability)
-            elif okay_indices:
-                server_index = okay_indices[int(np.floor(np.random.rand() * len(okay_indices)))]
-                note = self.__network[client_index].take_note(self.__network[server_index], service, capability)
-            else:
-                note = -1
+            note = self.__find_and_rate_best_server(client_index, service, capability, predictions)
 
             if note == -1:
                 bad_transactions += 1
@@ -309,6 +318,18 @@ class TrustManager:
                 okay_transactions += 1
             else:
                 good_transactions += 1
+            Functions.print_progress(epoch, epochs, prefix=f"{epoch}/{epochs}")
+        print()
+
+        return bad_transactions, okay_transactions, good_transactions
+
+    def simulate_transactions(self, epochs):
+        '''
+        Simulate epochs number of random transactions and return the percentage of bad
+        transactions that have occured.
+        '''
+        print("Simulating transactions...")
+        bad_transactions, okay_transactions, good_transactions = self.__simulate_and_rate_trans(epochs)
 
         return Functions.calc_percentage(bad_transactions, epochs), \
             Functions.calc_percentage(okay_transactions, epochs), \
