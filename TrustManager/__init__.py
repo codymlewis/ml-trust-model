@@ -137,7 +137,7 @@ class TrustManager:
                             f"{reports_from_node_i[0]},{reports_on_node_j[0]},{reports_on_node_j[1].csv_output()}\n"
                         )
 
-    def train(self):
+    def train(self, cont):
         '''
         Train the predictor.
         '''
@@ -145,7 +145,7 @@ class TrustManager:
             self.evolve_svm()
             self.load_svms()
         else:
-            self.train_ann()
+            self.train_ann(cont)
             self.load_ann()
 
     def evolve_svm(self):
@@ -173,18 +173,17 @@ class TrustManager:
         joblib.dump(svms, "data/SVMs.pkl")
         print()
 
-    def train_ann(self):
+    def train_ann(self, cont):
         '''
         Train the artificial neural network.
         '''
-        train_data, train_notes = read_data(self.__train_filename)
-        test_data, test_notes = read_data(self.__test_filename)
+        train_data, train_notes = read_data(self.__train_filename, dict_mode=False)
+        test_data, test_notes = read_data(self.__test_filename, dict_mode=False)
 
-        if not os.path.exists("data/ANN"):
-            os.makedirs("data/ANN")
-        for reporter_id, _ in train_data.items():
-            ANN.create_and_train_ann(train_data[reporter_id], train_notes[reporter_id],
-                                     test_data[reporter_id], test_notes[reporter_id]).save(f"data/ANN/{reporter_id}.h5")
+        if cont and os.path.exists("data/ANN.h5"):
+            self.load_ann()
+        ANN.create_and_train_ann(train_data, train_notes, test_data, test_notes,
+                                 model=self.__predictor).save("data/ANN.h5")
 
     def load_svms(self):
         '''
@@ -197,8 +196,7 @@ class TrustManager:
         Load the neural network classifier.
         '''
         self.__predictor = dict()
-        for node_id in range(len(self.__network)):
-            self.__predictor[node_id] = keras.models.load_model(f"data/ANN/{node_id}.h5")
+        self.__predictor = keras.models.load_model(f"data/ANN.h5")
 
     def get_all_recommendations(self, service_target, capability_target):
         '''
@@ -367,22 +365,30 @@ def load(train_filename, test_filename, use_svm):
     return trust_manager
 
 
-def read_data(filename, delimiter=","):
+def read_data(filename, delimiter=",", dict_mode=True):
     '''
     Read data from a csv of reports.
     '''
-    train_data = dict()
-    notes = dict()
+    if dict_mode:
+        train_data = dict()
+        notes = dict()
+    else:
+        train_data = []
+        notes = []
 
     with open(filename) as report_csv:
         csv_reader = csv.reader(report_csv, delimiter=delimiter)
         for row in csv_reader:
-            reporter_id = int(row[0])
-            if train_data.get(reporter_id):
-                train_data[reporter_id].append(row[1:-1])
-                notes[reporter_id].append(row[-1])
+            if dict_mode:
+                reporter_id = int(row[0])
+                if train_data.get(reporter_id):
+                    train_data[reporter_id].append(row[1:-1])
+                    notes[reporter_id].append(row[-1])
+                else:
+                    train_data[reporter_id] = [row[1:-1]]
+                    notes[reporter_id] = [row[-1]]
             else:
-                train_data[reporter_id] = [row[1:-1]]
-                notes[reporter_id] = [row[-1]]
+                train_data.append(row[:-1])
+                notes.append(row[-1])
 
     return train_data, notes

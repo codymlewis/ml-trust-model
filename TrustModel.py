@@ -27,6 +27,8 @@ if __name__ == '__main__':
                         help="Use an ann as the predictor [default predictor]")
     PARSER.add_argument("-t", "--train", dest="train", action="store_const", const=True, default=False,
                         help="Train the predictor on the previously generated data")
+    PARSER.add_argument("-co", "--continue", dest="cont", action="store_const", const=True, default=False,
+                        help="Continue training the ann.")
     PARSER.add_argument("-tr", "--transact", dest="transact", action="store", nargs=3, type=int,
                         metavar=("ID", "SERVICE", "CAPABILITY"),
                         help="Simulate a single transaction for node ID for SERVICE at CAPABILITY and print out the trusted list.")
@@ -53,7 +55,7 @@ if __name__ == '__main__':
             train_filename=TRAIN_FILENAME, test_filename=TEST_FILENAME, use_svm=ARGS.use_svm
         )
         TRUST_MANAGER.bootstrap(ARGS.epochs)
-        TRUST_MANAGER.train()
+        TRUST_MANAGER.train(ARGS.cont)
         TRUST_MANAGER.graph_recommendations(1, 1, 1)
         BAD_PER, OK_PER, GOOD_PER = TRUST_MANAGER.simulate_transactions(ARGS.epochs)
         print(f"Percentage of bad transactions: {BAD_PER}")
@@ -78,7 +80,7 @@ if __name__ == '__main__':
     if ARGS.train:
         print("Training...")
         TRUST_MANAGER = TrustManager.load(TRAIN_FILENAME, TEST_FILENAME, ARGS.use_svm)
-        TRUST_MANAGER.train()
+        TRUST_MANAGER.train(ARGS.cont)
 
     if ARGS.transact:
         TRUST_MANAGER = TrustManager.load(TRAIN_FILENAME, TEST_FILENAME, ARGS.use_svm)

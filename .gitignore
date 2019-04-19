@@ -396,3 +396,4 @@ Session.vim
 *.pdf
 *.gv
 *.h5
+logs/*
