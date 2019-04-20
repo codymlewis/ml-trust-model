@@ -348,7 +348,7 @@ class TrustManager:
         else:
             if not self.__predictor:
                 self.load_ann()
-            avg_time = ANN.time_predict(self.__predictor[client], server, service, capability)
+            avg_time = ANN.time_predict(self.__predictor, client, server, service, capability)
         return avg_time
 
 

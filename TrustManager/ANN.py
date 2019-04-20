@@ -1,3 +1,5 @@
+import os
+
 from tensorflow import keras
 import numpy as np
 import sklearn.preprocessing as skp
@@ -35,8 +37,10 @@ def create_and_train_ann(train_data, train_labels, test_data, test_labels, model
     data = np.array(train_data + test_data)
     labels = skp.label_binarize(np.array(train_labels + test_labels), ["-1", "0", "1"])
     tensorboard = keras.callbacks.TensorBoard(log_dir="./logs", histogram_freq=0, write_graph=True, write_images=False)
-    checkpointer = keras.callbacks.ModelCheckpoint("data/ANN.h5", monitor='val_loss', verbose=1,
-                                                   save_best_only=False, save_weights_only=False,
+    if not os.path.exists("data/ANN"):
+        os.makedirs("data/ANN")
+    checkpointer = keras.callbacks.ModelCheckpoint("data/ANN/ANN.{epoch:03d}-{val_loss:.2f}.h5", monitor='val_loss',
+                                                   verbose=1, save_best_only=False, save_weights_only=False,
                                                    mode='auto', period=1)
     model.fit(x=data, y=labels, epochs=500, validation_split=0.5, callbacks=[tensorboard, checkpointer])
 
@@ -63,9 +67,9 @@ def unbinarize(arr):
     return [-1, 0, 1][value.index(max(value))]
 
 
-def time_predict(ann, node_id, service_target, capability_target):
+def time_predict(ann, client_id, server_id, service_target, capability_target):
     '''
     Find the average time to predict.
     '''
-    predict = Functions.wrap_func(ann.predict, np.array([[node_id, service_target, capability_target]]))
+    predict = Functions.wrap_func(ann.predict, np.array([[client_id, server_id, service_target, capability_target]]))
     return Functions.time(predict)
