@@ -44,23 +44,7 @@ if __name__ == '__main__':
     TEST_FILENAME = "data/reports-test.csv"
 
     if len(sys.argv) == 1:
-        # First blank out file
-        with open(TRAIN_FILENAME, "w") as FILE:
-            FILE.write("")
-        with open(TEST_FILENAME, "w") as FILE:
-            FILE.write("")
-
-        # Then create trust manager and bootstrap
-        TRUST_MANAGER = TrustManager.TrustManager(
-            train_filename=TRAIN_FILENAME, test_filename=TEST_FILENAME, use_svm=ARGS.use_svm
-        )
-        TRUST_MANAGER.bootstrap(ARGS.epochs)
-        TRUST_MANAGER.train(ARGS.cont)
-        TRUST_MANAGER.graph_recommendations(1, 1, 1)
-        BAD_PER, OK_PER, GOOD_PER = TRUST_MANAGER.simulate_transactions(ARGS.epochs)
-        print(f"Percentage of bad transactions: {BAD_PER}")
-        print(f"Percentage of okay transactions: {OK_PER}")
-        print(f"Percentage of good transactions: {GOOD_PER}")
+        PARSER.print_help()
 
     TRUST_MANAGER = None
 
